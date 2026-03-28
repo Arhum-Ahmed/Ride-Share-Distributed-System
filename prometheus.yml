@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: dispatcher
+    static_configs:
+      - targets:
+          - dispatcher1:8000
+          - dispatcher2:8000
