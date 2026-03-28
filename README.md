@@ -1,4 +1,5 @@
 # Distributed Ride-Request Simulation Platform
+![Architecture Diagram](architecture.svg)
 ENGR 5710G — Network Computing (Winter 2026)
 
 ## Prerequisites
