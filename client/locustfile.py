@@ -9,7 +9,7 @@ class RiderUser(HttpUser):
 
     @task
     def submit_ride(self):
-        self.client.post("/rides", json={
-            "pickup":  random.choice(PICKUPS),
-            "dropoff": random.choice(DROPOFFS),
-        })
+        self.client.post("/rides",
+            json={"pickup": random.choice(PICKUPS), "dropoff": random.choice(DROPOFFS)},
+            headers={"X-API-Key": "client-secret"},
+        )

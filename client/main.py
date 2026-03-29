@@ -51,6 +51,7 @@ async def submit_ride(
         resp = await http.post(
             f"{dispatcher_url}/rides",
             json={"pickup": pickup, "dropoff": dropoff},
+            headers={"X-API-Key": "client-secret"},
         )
         if resp.status_code == 429:
             print(f"  [ride-{ride_num:03d}] ⚠  Rate limited by {dispatcher_url}")

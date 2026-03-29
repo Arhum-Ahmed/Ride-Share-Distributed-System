@@ -77,21 +77,24 @@ app = FastAPI(title=f"Dispatcher Service [{DISPATCHER_ID}]", lifespan=lifespan)
 Instrumentator().instrument(app).expose(app)
 
 
-# ── Rate-limiting middleware ───────────────────────────────────────────────────
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
     if request.url.path == "/rides" and request.method == "POST":
+        
+        # ── API key check ──────────────────────────────────────
+        api_key = request.headers.get("X-API-Key")
+        if api_key != "client-secret":
+            return JSONResponse(status_code=401, content={"detail": "Invalid API key"})
+
+        # ── Rate limiting ──────────────────────────────────────
         client_ip = request.client.host
         key = f"rate:{client_ip}"
         count = await redis_client.incr(key)
         if count == 1:
             await redis_client.expire(key, RATE_LIMIT_WINDOW)
         if count > RATE_LIMIT_REQUESTS:
-            logger.warning(
-                "rate limit exceeded",
-                extra={"ip": client_ip, "count": count, "dispatcher_id": DISPATCHER_ID},
-            )
-            return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded. Try again later."})
+            return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded."})
+
     return await call_next(request)
 
 
