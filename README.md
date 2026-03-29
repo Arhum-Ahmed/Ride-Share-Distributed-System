@@ -76,13 +76,8 @@ This builds and starts all 11 containers:
 | grafana | Metrics dashboard | 3000 |
 | redisinsight | Redis queue inspector | 5540 |
 
-### Step 4 — Wait for drivers to register (~10 seconds)
-Watch the logs — you should see:
-```
-driver1  | registered with dispatcher
-driver2  | registered with dispatcher
-driver3  | registered with dispatcher
-```
+### Step 4 — Wait for a few second for the system to start (~10 seconds)
+Watch the logs.
 
 ### Step 5 — Verify everything is running
 ```bash
@@ -90,10 +85,13 @@ curl http://localhost:8001/health
 ```
 Expected response:
 ```json
-{
-  "dispatcher_id": "dispatcher-1",
-  "status": "ok",
-  "available_drivers": 5
+{   
+    "dispatcher_id":"dispatcher-1",
+    "status":"ok",
+    "ride_queue_depth":0,
+    "available_drivers":5,
+    "pending_assignments":0,
+    "timestamp":"2026-03-29T17:51:11.000053+00:00"
 }
 ```
 
@@ -128,8 +126,8 @@ Expected output:
   [ride-001]  assigned    driver=driver-2    0.6s
   [ride-002]  assigned    driver=driver-1    0.7s
   ...
-  Assigned successfully : 20  (100%)
-  Avg latency : 1.2s
+  Total simulation time : 7.87s
+  Throughput            : 2.5 rides/s
 ============================================================
 ```
 
@@ -228,7 +226,7 @@ Lower the limit in `docker-compose.yml` for both dispatchers:
 - RATE_LIMIT_REQUESTS=5
 ```
 Rebuild: `docker compose up --build`
-Run Locust with high concurrency — 429s will appear in the Failures tab.
+Run Locust with high concurrency.
 
 ### Demo 6 — Watchdog rescue
 ```bash
@@ -308,7 +306,4 @@ All configurable via `docker-compose.yml` — no code changes needed.
 ```bash
 # Stop all containers
 docker compose down
-
-# Stop and remove all data (full reset)
-docker compose down -v
 ```
