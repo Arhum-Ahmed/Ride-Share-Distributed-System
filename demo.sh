@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ── Colors ─────────────────────────────────────────────────────────────────────
+# Colors
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
 
@@ -28,7 +28,7 @@ get_status() { echo "$1" | python3 -c "import sys,json; print(json.load(sys.stdi
 redis_cmd() { docker compose exec -T redis redis-cli "$@" 2>/dev/null > /dev/null; }
 redis_out() { docker compose exec -T redis redis-cli "$@" 2>/dev/null | tr -d '\r'; }
 
-# ── Global continuous logger — start once, runs for entire demo ────────────────
+# Global continuous logger
 start_global_logging() {
   > "$LOGFILE"
   docker compose logs -f --no-log-prefix dispatcher1 dispatcher2 watchdog 2>/dev/null >> "$LOGFILE" &
@@ -42,8 +42,7 @@ stop_global_logging() {
   LOG_PID=""
 }
 
-# ── Show logs between two timestamps, with optional pattern and ride_id filter ─
-# Usage: show_logs_between "2026-03-29 22:10:00" "2026-03-29 22:11:30" "pattern" count "ride_id"
+# Show logs between two timestamps, with optional pattern and ride_id filter
 show_logs_between() {
   local ts_start="$1"
   local ts_end="$2"
@@ -74,9 +73,7 @@ show_logs_between() {
 
 now() { date -u +"%Y-%m-%d %H:%M:%S"; }
 
-# ══════════════════════════════════════════════════
 # SCENARIO 1 — Dispatcher Crash + Auto Recovery
-# ══════════════════════════════════════════════════
 demo_dispatcher_crash() {
   header "SCENARIO 1: Dispatcher Crash + Auto Recovery"
   local T_START; T_START=$(now)
@@ -120,9 +117,7 @@ demo_dispatcher_crash() {
   show_logs_between "$T_START" "$T_END" "ride submitted|assigned successfully" 16
 }
 
-# ══════════════════════════════════════════════════
 # SCENARIO 2 — Driver Goes Offline
-# ══════════════════════════════════════════════════
 demo_driver_offline() {
   header "SCENARIO 2: Driver Goes Offline"
 
@@ -164,9 +159,7 @@ demo_driver_offline() {
   success "driver1 is back UP ✓"
 }
 
-# ══════════════════════════════════════════════════
 # SCENARIO 3 — Driver Timeout
-# ══════════════════════════════════════════════════
 demo_driver_timeout() {
   header "SCENARIO 3: Driver Timeout"
 
@@ -200,9 +193,7 @@ demo_driver_timeout() {
   show_logs_between "$T_START" "$T_END" "timed out|assigned successfully" 6 "$RIDE_ID"
 }
 
-# ══════════════════════════════════════════════════
 # SCENARIO 4 — Security
-# ══════════════════════════════════════════════════
 demo_security() {
   header "SCENARIO 4: Security — Auth + Input Validation"
 
@@ -230,9 +221,7 @@ demo_security() {
   echo "$r" | grep -q "queued" && success "202 Accepted — ride $id queued ✓" || echo -e "${RED}[FAIL]${NC}"
 }
 
-# ══════════════════════════════════════════════════
 # SCENARIO 5 — Queue Overload
-# ══════════════════════════════════════════════════
 demo_overload() {
   header "SCENARIO 5: Queue Overload"
 
@@ -279,9 +268,7 @@ demo_overload() {
   show_logs_between "$T_START" "$T_END" "overload-|no drivers|re-queued|assigned successfully" 20
 }
 
-# ══════════════════════════════════════════════════
 # SCENARIO 6 — Watchdog Rescue
-# ══════════════════════════════════════════════════
 demo_watchdog() {
   header "SCENARIO 6: Watchdog Rescue"
 
@@ -309,24 +296,6 @@ demo_watchdog() {
   redis_cmd ZREM pending_assignments driver-99
 }
 
-# ══════════════════════════════════════════════════
-# MAIN
-# ══════════════════════════════════════════════════
-# echo ""
-# echo -e "${CYAN}  Distributed Ride-Request Platform — Failure Demo Script${NC}"
-# echo -e "${CYAN}  ─────────────────────────────────────────────────────────${NC}"
-# echo ""
-# echo "  1) Dispatcher crash + auto recovery"
-# echo "  2) Driver goes offline"
-# echo "  3) Driver timeout"
-# echo "  4) Security (auth + input validation)"
-# echo "  5) Queue overload"
-# echo "  6) Watchdog rescue"
-# echo "  7) Run ALL scenarios"
-# echo ""
-# read -p "  Choose scenario [1-7]: " choice
-
-# Start single continuous logger before any scenario runs
 start_global_logging
 
 demo_dispatcher_crash; sleep 2

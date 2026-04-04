@@ -1,16 +1,10 @@
 """
 Client Simulator
 ────────────────
-Submits N ride requests concurrently across two dispatchers,
-polls for results, and prints evaluation metrics.
+Submits N ride requests concurrently across two dispatchers, polls for results, and prints evaluation metrics.
 
 Usage:
     python main.py [--rides 20] [--concurrency 10] [--dispatcher1 http://localhost:8001] [--dispatcher2 http://localhost:8002]
-
-This script covers the Evaluation requirement:
-  - Ride request response time (end-to-end latency)
-  - Assignment success rate under concurrent load
-  - Comparison of load across both dispatchers
 """
 
 import argparse
@@ -21,7 +15,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-# ── Sample data ────────────────────────────────────────────────────────────────
+# Sample data
 PICKUP_LOCATIONS = [
     "123 Main St", "Airport Terminal 1", "Union Station",
     "City Hall", "Central Park North", "Westside Mall",
@@ -44,7 +38,6 @@ async def submit_ride(
     dropoff: str,
     ride_num: int,
 ) -> dict:
-    """Submit one ride and poll until assigned or failed."""
     submit_start = time.monotonic()
 
     try:
@@ -54,19 +47,19 @@ async def submit_ride(
             headers={"X-API-Key": "client-secret"},
         )
         if resp.status_code == 429:
-            print(f"  [ride-{ride_num:03d}] ⚠  Rate limited by {dispatcher_url}")
+            print(f"  [ride-{ride_num:03d}]  Rate limited by {dispatcher_url}")
             return {"status": "rate_limited", "latency_s": None}
         if resp.status_code != 202:
-            print(f"  [ride-{ride_num:03d}] ✗  Unexpected status {resp.status_code}")
+            print(f"  [ride-{ride_num:03d}] Unexpected status {resp.status_code}")
             return {"status": "error", "latency_s": None}
 
         ride_id = resp.json()["ride_id"]
 
     except (httpx.ConnectError, httpx.TimeoutException) as e:
-        print(f"  [ride-{ride_num:03d}] ✗  Cannot reach dispatcher: {e}")
+        print(f"  [ride-{ride_num:03d}]  Cannot reach dispatcher: {e}")
         return {"status": "unreachable", "latency_s": None}
 
-    # ── Poll for result ────────────────────────────────────────────────────────
+    # Poll for result
     deadline = time.monotonic() + POLL_TIMEOUT
     while time.monotonic() < deadline:
         await asyncio.sleep(POLL_INTERVAL)
@@ -130,7 +123,7 @@ async def run_simulation(
 
     total_time = round(time.monotonic() - sim_start, 2)
 
-    # ── Summary ────────────────────────────────────────────────────────────────
+    # Summary
     assigned     = [r for r in results if r["status"] == "assigned"]
     failed       = [r for r in results if r["status"] == "failed"]
     rate_limited = [r for r in results if r["status"] == "rate_limited"]

@@ -2,14 +2,6 @@
 Watchdog Service
 ────────────────
 Monitors the `pending_assignments` sorted set in Redis.
-Each entry is: member=driver_id, score=unix_timestamp_of_assignment_start
-
-If a dispatcher crashes after popping a driver but before completing the
-assignment, the driver stays in `pending_assignments` forever.
-The watchdog detects entries older than STALE_THRESHOLD_SECONDS and pushes
-those drivers back into the available pool.
-
-This covers failure scenario: partial failure during assignment.
 """
 
 import asyncio
@@ -20,28 +12,24 @@ from datetime import datetime, timezone
 import redis.asyncio as aioredis
 from pythonjsonlogger import jsonlogger
 
-# ── Logging ────────────────────────────────────────────────────────────────────
+# Logging
 logger = logging.getLogger("watchdog")
 _handler = logging.StreamHandler()
 _handler.setFormatter(jsonlogger.JsonFormatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
 logger.addHandler(_handler)
 logger.setLevel(logging.INFO)
 
-# ── Config ─────────────────────────────────────────────────────────────────────
+# Config
 REDIS_URL               = os.getenv("REDIS_URL", "redis://localhost:6379")
 STALE_THRESHOLD_SECONDS = int(os.getenv("STALE_THRESHOLD_SECONDS", "15"))
 WATCHDOG_INTERVAL       = int(os.getenv("WATCHDOG_INTERVAL", "5"))    # how often to scan
 
 
 async def rescue_stale_drivers(redis_client: aioredis.Redis):
-    """
-    Find all entries in `pending_assignments` whose score (timestamp) is
-    older than STALE_THRESHOLD_SECONDS and push them back to `driver:queue`.
-    """
     now = datetime.now(timezone.utc).timestamp()
     cutoff = now - STALE_THRESHOLD_SECONDS
 
-    # ZRANGEBYSCORE returns all members with score <= cutoff (i.e. stuck too long)
+    # ZRANGEBYSCORE returns all members with score <= cutoff
     stale_drivers = await redis_client.zrangebyscore("pending_assignments", "-inf", cutoff)
 
     if not stale_drivers:

@@ -14,14 +14,14 @@ from pydantic import BaseModel, field_validator
 from pythonjsonlogger import jsonlogger
 from prometheus_fastapi_instrumentator import Instrumentator
 
-# ── Logging ────────────────────────────────────────────────────────────────────
+# Logging
 logger = logging.getLogger("dispatcher")
 _handler = logging.StreamHandler()
 _handler.setFormatter(jsonlogger.JsonFormatter("%(asctime)s %(name)s %(levelname)s %(message)s"))
 logger.addHandler(_handler)
 logger.setLevel(logging.INFO)
 
-# ── Config ─────────────────────────────────────────────────────────────────────
+#  Config
 REDIS_URL             = os.getenv("REDIS_URL", "redis://localhost:6379")
 DISPATCHER_ID         = os.getenv("DISPATCHER_ID", "dispatcher-1")
 DRIVER_SECRET         = os.getenv("DRIVER_SECRET", "supersecret")
@@ -30,11 +30,11 @@ RATE_LIMIT_WINDOW     = int(os.getenv("RATE_LIMIT_WINDOW", "10"))   # seconds
 ASSIGN_TIMEOUT        = float(os.getenv("ASSIGN_TIMEOUT", "5.0"))   # seconds
 MAX_RETRIES           = int(os.getenv("MAX_RETRIES", "3"))
 
-# ── Shared Redis client ────────────────────────────────────────────────────────
+# Shared Redis client
 redis_client: aioredis.Redis = None
 
 
-# ── Models ─────────────────────────────────────────────────────────────────────
+# Models
 class RideRequest(BaseModel):
     pickup: str
     dropoff: str
@@ -49,14 +49,12 @@ class RideRequest(BaseModel):
             raise ValueError("location must be under 200 characters")
         return v
 
-
 class DriverRegistration(BaseModel):
     driver_id: str
     url: str
     token: str
 
-
-# ── Lifespan (startup / shutdown) ─────────────────────────────────────────────
+# Lifespan (startup / shutdown)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global redis_client
@@ -81,12 +79,12 @@ Instrumentator().instrument(app).expose(app)
 async def rate_limit(request: Request, call_next):
     if request.url.path == "/rides" and request.method == "POST":
         
-        # ── API key check ──────────────────────────────────────
+        # API key check
         api_key = request.headers.get("X-API-Key")
         if api_key != "client-secret":
             return JSONResponse(status_code=401, content={"detail": "Invalid API key"})
 
-        # ── Rate limiting ──────────────────────────────────────
+        # Rate limiting
         client_ip = request.client.host
         key = f"rate:{client_ip}"
         count = await redis_client.incr(key)
@@ -98,7 +96,7 @@ async def rate_limit(request: Request, call_next):
     return await call_next(request)
 
 
-# ── Routes ─────────────────────────────────────────────────────────────────────
+# Routes
 @app.post("/rides", status_code=202)
 async def submit_ride(ride: RideRequest, request: Request):
     """Client submits a ride request. Returns ride_id for polling."""
@@ -117,7 +115,6 @@ async def submit_ride(ride: RideRequest, request: Request):
 
 @app.get("/rides/{ride_id}/status")
 async def ride_status(ride_id: str):
-    """Client polls this endpoint until status is not 'pending'."""
     raw = await redis_client.get(f"result:{ride_id}")
     if raw is None:
         return {"ride_id": ride_id, "status": "pending"}
@@ -127,7 +124,6 @@ async def ride_status(ride_id: str):
 
 @app.post("/drivers/register", status_code=201)
 async def register_driver(reg: DriverRegistration):
-    """Driver nodes call this on startup to join the available pool."""
     if reg.token != DRIVER_SECRET:
         logger.warning(
             "driver registration rejected — bad token",
@@ -137,7 +133,7 @@ async def register_driver(reg: DriverRegistration):
 
     await redis_client.set(f"driver:{reg.driver_id}:url", reg.url)
 
-    # Only add to queue if not already present (idempotent re-registration)
+    # Only add to queue if not already present
     existing = await redis_client.lrange("driver:queue", 0, -1)
     if reg.driver_id not in existing:
         await redis_client.rpush("driver:queue", reg.driver_id)
@@ -150,7 +146,6 @@ async def register_driver(reg: DriverRegistration):
 
 @app.post("/simulate/overload")
 async def simulate_overload(count: int = 30):
-    """Flood the ride queue to demonstrate load shedding behaviour."""
     import uuid
     for i in range(count):
         payload = {
@@ -166,7 +161,6 @@ async def simulate_overload(count: int = 30):
 
 @app.get("/health")
 async def health():
-    """Observability — exposes queue depths and dispatcher state."""
     ride_depth   = await redis_client.llen("ride:queue")
     driver_count = await redis_client.llen("driver:queue")
     pending      = await redis_client.zcard("pending_assignments")
@@ -179,20 +173,14 @@ async def health():
         "timestamp":         _now(),
     }
 
-
-# ── Dispatcher loop ────────────────────────────────────────────────────────────
+# Dispatcher loop
 async def dispatcher_loop():
-    """
-    Continuously BLPOP from ride:queue.
-    Each ride is processed in its own async task so multiple rides
-    can be in-flight simultaneously (concurrency requirement).
-    """
     logger.info("dispatcher loop running", extra={"dispatcher_id": DISPATCHER_ID})
     while True:
         try:
             result = await redis_client.blpop("ride:queue", timeout=2)
             if result is None:
-                continue                          # timeout — loop back and wait
+                continue                          # timeout
             _, ride_json = result
             ride = json.loads(ride_json)
             asyncio.create_task(process_ride(ride))   # non-blocking
@@ -208,20 +196,11 @@ async def dispatcher_loop():
 
 
 async def process_ride(ride: dict):
-    """
-    Try to assign a driver to a ride.
-    Retries MAX_RETRIES times across different drivers.
-    Failure scenarios handled:
-      - No drivers available  → re-queue ride
-      - Driver HTTP timeout   → push driver back, try next
-      - Driver offline        → push driver back, try next
-      - Driver rejects ride   → push driver back, try next
-    """
     ride_id = ride["ride_id"]
     logger.info("assigning ride", extra={"ride_id": ride_id, "dispatcher_id": DISPATCHER_ID})
 
     for attempt in range(1, MAX_RETRIES + 1):
-        # ── Try to grab an available driver (atomic LPOP — no race condition) ──
+        # Try to grab an available driver
         driver_id = await redis_client.lpop("driver:queue")
 
         if driver_id is None:
@@ -232,7 +211,7 @@ async def process_ride(ride: dict):
             if attempt < MAX_RETRIES:
                 await asyncio.sleep(2)
                 continue
-            # All retries exhausted with no driver — re-queue the ride
+            # All retries exhausted with no driver
             await redis_client.rpush("ride:queue", json.dumps(ride))
             logger.error(
                 "ride re-queued — no drivers after all retries",
@@ -240,7 +219,7 @@ async def process_ride(ride: dict):
             )
             return
 
-        # ── Record this assignment attempt in sorted set (watchdog monitors this) ──
+        # Record this assignment attempt in sorted set
         await redis_client.zadd("pending_assignments", {driver_id: _timestamp()})
 
         driver_url = await redis_client.get(f"driver:{driver_id}:url")
@@ -249,7 +228,7 @@ async def process_ride(ride: dict):
             await redis_client.zrem("pending_assignments", driver_id)
             continue
 
-        # ── Attempt assignment via REST ────────────────────────────────────────
+        # Attempt assignment via REST
         try:
             async with httpx.AsyncClient(timeout=ASSIGN_TIMEOUT) as http:
                 resp = await http.post(
@@ -265,7 +244,7 @@ async def process_ride(ride: dict):
             await redis_client.zrem("pending_assignments", driver_id)
 
             if resp.status_code == 200 and resp.json().get("accepted"):
-                # ── SUCCESS ────────────────────────────────────────────────────
+                # SUCCESS
                 result = {
                     "status":      "assigned",
                     "driver_id":   driver_id,
@@ -280,7 +259,7 @@ async def process_ride(ride: dict):
                 return
 
             else:
-                # Driver explicitly rejected the ride — push back and try next
+                # Driver explicitly rejected the ride
                 logger.info(
                     "driver rejected ride",
                     extra={"driver_id": driver_id, "ride_id": ride_id, "attempt": attempt},
@@ -303,7 +282,7 @@ async def process_ride(ride: dict):
             )
             # Don't push offline driver back — they're gone
 
-    # ── All retries failed ─────────────────────────────────────────────────────
+    # All retries failed
     await redis_client.set(
         f"result:{ride_id}",
         json.dumps({"status": "failed", "reason": "no driver accepted after all retries"}),
@@ -311,7 +290,7 @@ async def process_ride(ride: dict):
     logger.error("ride assignment failed", extra={"ride_id": ride_id, "dispatcher_id": DISPATCHER_ID})
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# Helpers
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
