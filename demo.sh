@@ -312,40 +312,29 @@ demo_watchdog() {
 # ══════════════════════════════════════════════════
 # MAIN
 # ══════════════════════════════════════════════════
-echo ""
-echo -e "${CYAN}  Distributed Ride-Request Platform — Failure Demo Script${NC}"
-echo -e "${CYAN}  ─────────────────────────────────────────────────────────${NC}"
-echo ""
-echo "  1) Dispatcher crash + auto recovery"
-echo "  2) Driver goes offline"
-echo "  3) Driver timeout"
-echo "  4) Security (auth + input validation)"
-echo "  5) Queue overload"
-echo "  6) Watchdog rescue"
-echo "  7) Run ALL scenarios"
-echo ""
-read -p "  Choose scenario [1-7]: " choice
+# echo ""
+# echo -e "${CYAN}  Distributed Ride-Request Platform — Failure Demo Script${NC}"
+# echo -e "${CYAN}  ─────────────────────────────────────────────────────────${NC}"
+# echo ""
+# echo "  1) Dispatcher crash + auto recovery"
+# echo "  2) Driver goes offline"
+# echo "  3) Driver timeout"
+# echo "  4) Security (auth + input validation)"
+# echo "  5) Queue overload"
+# echo "  6) Watchdog rescue"
+# echo "  7) Run ALL scenarios"
+# echo ""
+# read -p "  Choose scenario [1-7]: " choice
 
 # Start single continuous logger before any scenario runs
 start_global_logging
 
-case $choice in
-  1) demo_dispatcher_crash ;;
-  2) demo_driver_offline ;;
-  3) demo_driver_timeout ;;
-  4) demo_security ;;
-  5) demo_overload ;;
-  6) demo_watchdog ;;
-  7)
-    demo_dispatcher_crash; sleep 2
-    demo_driver_offline;   sleep 2
-    demo_driver_timeout;   sleep 2
-    demo_security;         sleep 2
-    demo_overload;         sleep 2
-    demo_watchdog
-    ;;
-  *) echo "Invalid choice" ;;
-esac
+demo_dispatcher_crash; sleep 2
+demo_driver_offline;   sleep 2
+demo_driver_timeout;   sleep 2
+demo_security;         sleep 2
+demo_overload;         sleep 2
+demo_watchdog
 
 stop_global_logging
 

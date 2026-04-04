@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
 
   redis:
@@ -93,6 +91,8 @@ services:
       - DRIVER_SECRET=supersecret
       - DISPATCHER_URL=http://dispatcher1:8000
       - REJECTION_RATE=0.2
+    depends_on:
+      - dispatcher1
 
   driver5:
     build: ./driver
@@ -104,6 +104,8 @@ services:
       - DRIVER_SECRET=supersecret
       - DISPATCHER_URL=http://dispatcher1:8000
       - REJECTION_RATE=0.2
+    depends_on:
+      - dispatcher1
 
   watchdog:
     build: ./watchdog
