@@ -50,10 +50,8 @@ services:
       - DRIVER_ID=driver-1
       - DRIVER_URL=http://driver1:8000
       - DRIVER_SECRET=supersecret
-      - DISPATCHER_URL=http://dispatcher1:8000
+      - DISPATCHER_URL=http://nginx:80
       - REJECTION_RATE=0.2
-    depends_on:
-      - dispatcher1
 
   driver2:
     build: ./driver
@@ -63,10 +61,8 @@ services:
       - DRIVER_ID=driver-2
       - DRIVER_URL=http://driver2:8000
       - DRIVER_SECRET=supersecret
-      - DISPATCHER_URL=http://dispatcher1:8000
+      - DISPATCHER_URL=http://nginx:80
       - REJECTION_RATE=0.2
-    depends_on:
-      - dispatcher1
 
   driver3:
     build: ./driver
@@ -76,10 +72,8 @@ services:
       - DRIVER_ID=driver-3
       - DRIVER_URL=http://driver3:8000
       - DRIVER_SECRET=supersecret
-      - DISPATCHER_URL=http://dispatcher1:8000
+      - DISPATCHER_URL=http://nginx:80
       - REJECTION_RATE=0.2
-    depends_on:
-      - dispatcher1
   
   driver4:
     build: ./driver
@@ -89,10 +83,8 @@ services:
       - DRIVER_ID=driver-4
       - DRIVER_URL=http://driver4:8000
       - DRIVER_SECRET=supersecret
-      - DISPATCHER_URL=http://dispatcher1:8000
+      - DISPATCHER_URL=http://nginx:80
       - REJECTION_RATE=0.2
-    depends_on:
-      - dispatcher1
 
   driver5:
     build: ./driver
@@ -102,10 +94,8 @@ services:
       - DRIVER_ID=driver-5
       - DRIVER_URL=http://driver5:8000
       - DRIVER_SECRET=supersecret
-      - DISPATCHER_URL=http://dispatcher1:8000
+      - DISPATCHER_URL=http://nginx:80
       - REJECTION_RATE=0.2
-    depends_on:
-      - dispatcher1
 
   watchdog:
     build: ./watchdog
